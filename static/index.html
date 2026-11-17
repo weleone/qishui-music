@@ -87,7 +87,7 @@
     <div id="zipBtn"><a id="zipLink" href="#">打包下载全部 (.zip)</a></div>
     <div id="err"></div>
   </div>
-  <div id="doneList"><h2>已下载 <button type="button" id="btnClearDone" style="float:right;background:none;border:none;color:#5b5b66;font-size:12px;cursor:pointer;">清空</button></h2><div id="doneItems"></div></div>
+  <div id="doneList"><h2>已下载 <button type="button" id="btnClearDone" style="float:right;background:none;border:none;color:#5b5b66;font-size:12px;cursor:pointer;">清空列表</button></h2><div id="doneItems"></div></div>
   <div class="foot">单首约 10-20 秒 &middot; 歌单逐首抓取请耐心等待<br>文件保留 1 小时后自动清理 &middot; 仅供个人学习使用<br>v1.0.15</div>
 </div>
 <script>
@@ -160,7 +160,7 @@ function poll(jobId) {
     } catch (e) { clearInterval(timer); showErr(e.message); resetBtn(); }
   }, 2000);
 }
-// 已下载列表存在浏览器本地 (localStorage), 刷新不丢, 点右上角清空才删
+// 已下载列表存在浏览器本地 (localStorage), 刷新不丢, 点右上角清空列表才删
 function loadDone() {
   let list = [];
   try { list = JSON.parse(localStorage.getItem('qishui_done') || '[]'); } catch (e) {}
