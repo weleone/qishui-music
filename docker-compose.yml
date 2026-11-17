@@ -1,0 +1,19 @@
+services:
+  qishui-music:
+    build: .
+    image: weleone/qishui-music:latest
+    container_name: qishui-music
+    restart: always
+    ports:
+      - "8107:8080"
+    environment:
+      - CLEANUP_AFTER=3600
+      # 页面上显示的保存路径(宿主机挂载目录), 改了挂载目录就同步改这里
+      - HOST_SAVE_PATH=/mnt/sdc1/music/mp3/qishui
+      # 登录开关: AUTH_USER 和 AUTH_PASSWORD 都填了才要求登录, 不填就跟以前一样不用登录
+      # 账号密码填好后存到 Vaultwarden 里; SECRET_KEY 是 session 签名用的随机串, 不填每次重启容器自动换一个(已登录的要重登)
+      - AUTH_USER=
+      - AUTH_PASSWORD=
+      - SECRET_KEY=
+    volumes:
+      - /mnt/sdc1/music/mp3/qishui:/tmp/qishui

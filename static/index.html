@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>汽水音乐抓取 - 自建服务</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: #0e0e11; color: #ececee; min-height: 100vh;
+         display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+  .wrap { width: 100%; max-width: 600px; }
+  h1 { font-size: 26px; text-align: center; margin-bottom: 6px; }
+  h1 .g { color: #1f9d55; }
+  .sub { text-align: center; color: #8b8b95; font-size: 14px; margin-bottom: 28px; }
+  .card { background: #16161b; border: 1px solid #26262e; border-radius: 16px; padding: 28px; }
+  label { display: block; font-size: 13px; color: #9a9aa5; margin-bottom: 8px; }
+  .inputRow { position: relative; margin-bottom: 18px; }
+  input[type=text] { width: 100%; background: #0e0e11; border: 1px solid #2c2c35; border-radius: 10px;
+    color: #ececee; padding: 13px 38px 13px 14px; font-size: 14px; outline: none; }
+  #btnClear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; border: none; border-radius: 50%; background: #26262e;
+    color: #9a9aa5; font-size: 15px; line-height: 1; cursor: pointer; display: none; }
+  #btnClear:hover { background: #33333d; color: #ececee; }
+  input[type=text]:focus { border-color: #1f9d55; }
+  #btnGo { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px;
+    font-weight: 700; background: #1f9d55; color: #fff; cursor: pointer; }
+  #btnGo:hover:not(:disabled) { background: #1a8749; }
+  #btnGo:disabled { opacity: .55; cursor: wait; }
+  .prog { margin-top: 22px; display: none; }
+  .bar { height: 8px; background: #26262e; border-radius: 4px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: linear-gradient(90deg,#1f9d55,#5bd68b);
+    border-radius: 4px; transition: width .4s; }
+  .st { font-size: 13px; color: #8b8b95; margin-top: 8px; }
+  #tracks { margin-top: 16px; display: none; max-height: 300px; overflow-y: auto; }
+  #tracks .tr { display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 12px; border: 1px solid #26262e; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
+  #tracks .tr .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
+  #tracks .tr a { color: #5bd68b; text-decoration: none; font-size: 13px; flex-shrink: 0; }
+  #tracks .tr .bad { color: #ff8888; font-size: 12px; flex-shrink: 0; }
+  #zipBtn { display: none; margin-top: 16px; text-align: center; }
+  #doneList { margin-top: 22px; display: none; }
+  #doneList h2 { font-size: 14px; color: #9a9aa5; margin-bottom: 10px; font-weight: 600; }
+  #doneList .tr { display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 12px; border: 1px solid #26262e; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
+  #doneList .tr .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
+  #doneList .tr .p { color: #5b5b66; font-size: 12px; word-break: break-all; }
+  #doneList .tr .acts { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; margin-left: 10px; }
+  #doneList .tr .acts a { text-decoration: none; font-size: 13px; }
+  #doneList .tr .acts .dl { color: #5bd68b; }
+  #doneList .tr .acts .del { color: #ff6666; }
+  #zipBtn a { display: inline-block; padding: 12px 36px; background: #5b5bd6; color: #fff;
+    border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; }
+  #err { display: none; margin-top: 18px; padding: 12px 14px; background: #3d1616;
+    border: 1px solid #6b2222; color: #ffaaaa; border-radius: 10px; font-size: 14px; }
+  .foot { margin-top: 28px; font-size: 12px; color: #55555e; text-align: center; line-height: 1.8; }
+  #toasts { position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 10px; z-index: 99; width: min(420px, 92vw); }
+  .toast { padding: 13px 15px; border-radius: 10px; font-size: 14px; line-height: 1.5;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+  .toast.ok { background: #14331f; border: 1px solid #1f5c33; color: #a7e8bd; }
+  .toast.err { background: #3d1616; border: 1px solid #6b2222; color: #ffaaaa; }
+  .toast.info { background: #1a2340; border: 1px solid #2a3a6b; color: #a9c0ff; }
+</style>
+</head>
+<body>
+<div id="toasts"></div>
+<div class="wrap">
+  <button id="btnRefresh" title="刷新页面" style="position:fixed;top:14px;left:14px;z-index:10;width:40px;height:40px;border-radius:10px;border:1px solid #33333d;background:#18181c;color:#ececee;font-size:20px;cursor:pointer;">&#8635;</button>
+  <h1><img src="/logo.png" alt="汽水音乐" style="width:34px;height:34px;vertical-align:-7px;border-radius:8px;margin-right:8px;"><span class="g">汽水</span>音乐抓取</h1>
+  <div class="sub">粘贴分享链接 &middot; 自动抓取 MP3 &middot; 自建私有服务</div>
+  <div id="srvAddr" style="text-align:center;color:#5b5b66;font-size:12px;margin-bottom:28px;word-break:break-all;"></div>
+  <div class="card">
+    <label>汽水音乐歌曲 / 歌单分享链接</label>
+    <div class="inputRow">
+      <input type="text" id="url" placeholder="粘贴 App 分享文本 / 短链 / 歌曲·歌单链接均可" autocomplete="off">
+      <button type="button" id="btnClear" title="清除">×</button>
+    </div>
+    <button id="btnGo">开始抓取</button>
+    <div class="prog" id="prog">
+      <div class="bar"><div id="pBar"></div></div>
+      <div class="st" id="pStatus"></div>
+      <div class="st" id="pDetail" style="color:#5b5b66;font-size:12px;word-break:break-all;"></div>
+    </div>
+    <div id="tracks"></div>
+    <div id="zipBtn"><a id="zipLink" href="#">打包下载全部 (.zip)</a></div>
+    <div id="err"></div>
+  </div>
+  <div id="doneList"><h2>已下载 <button type="button" id="btnClearDone" style="float:right;background:none;border:none;color:#5b5b66;font-size:12px;cursor:pointer;">清空</button></h2><div id="doneItems"></div></div>
+  <div class="foot">单首约 10-20 秒 &middot; 歌单逐首抓取请耐心等待<br>文件保留 1 小时后自动清理 &middot; 仅供个人学习使用<br>v1.0.15</div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+$('srvAddr').textContent = '当前服务器: ' + location.origin;
+$('btnRefresh').onclick = () => { location.href = location.pathname + '?t=' + Date.now(); };
+let timer = null;
+// 页面显示的保存路径, 从服务端 /api/config 拿(对应宿主机挂载目录), 拉不到就用默认
+let SAVE_PATH = '/mnt/sdc1/music/mp3/qishui';
+// 登录过期 (401) 直接跳登录页
+const _fetch = window.fetch.bind(window);
+window.fetch = async (...a) => {
+  const r = await _fetch(...a);
+  if (r.status === 401) location.href = '/login?next=' + encodeURIComponent(location.pathname);
+  return r;
+};
+function toast(msg, type, ms) {
+  type = type || 'info'; ms = ms || 4500;
+  const t = document.createElement('div');
+  t.className = 'toast ' + type; t.innerHTML = msg;
+  $('toasts').appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+$('url').addEventListener('input', () => { $('btnClear').style.display = $('url').value ? 'block' : 'none'; });
+$('btnClear').onclick = () => { $('url').value = ''; $('btnClear').style.display = 'none'; $('url').focus(); };
+$('btnGo').onclick = async () => {
+  const url = $('url').value.trim();
+  if (!url) return toast('请先粘贴分享链接', 'err');
+  $('err').style.display = 'none'; $('tracks').style.display = 'none';
+  $('tracks').innerHTML = ''; $('zipBtn').style.display = 'none';
+  $('btnGo').disabled = true; $('btnGo').textContent = '抓取中…';
+  $('prog').style.display = 'block'; $('pBar').style.width = '2%';
+  try {
+    const r = await fetch('/api/fetch', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '请求失败');
+    poll(d.job_id);
+  } catch (e) { showErr(e.message); resetBtn(); }
+};
+function poll(jobId) {
+  clearInterval(timer);
+  timer = setInterval(async () => {
+    try {
+      const r = await fetch('/api/status/' + jobId);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || '状态查询失败');
+      $('pBar').style.width = Math.min(100, d.progress || 0) + '%';
+      $('pStatus').textContent = d.status || '';
+      if (d.resolved_url) {
+        $('pDetail').textContent = '解析地址: ' + d.resolved_url;
+        clearTimeout(window._pDetailTimer);
+        window._pDetailTimer = setTimeout(() => { $('pDetail').textContent = ''; }, 8000);
+      }
+      if (d.tracks && d.tracks.length) renderTracks(jobId, d.tracks);
+      if (d.status === 'done') {
+        clearInterval(timer);
+        $('pBar').style.width = '100%'; $('pStatus').textContent = '完成';
+        renderTracks(jobId, d.tracks, d.files);
+        if (d.files && d.files.length > 1) {
+          $('zipLink').href = '/api/zip/' + jobId;
+          $('zipBtn').style.display = 'block';
+        }
+        (d.files || []).forEach((f, i) => addDone(f.name, jobId, i));
+        toast('抓取完成，共 ' + (d.files ? d.files.length : 0) + ' 首' + ((d.files || []).map(f => '<br><span style="font-size:12px;color:#7ddba0;word-break:break-all;">' + SAVE_PATH + '/' + escapeHtml(f.name) + '</span>').join('')), 'ok', 8000);
+        resetBtn();
+      } else if (d.status === 'error') {
+        clearInterval(timer); showErr('抓取失败：' + (d.error || '未知错误')); resetBtn();
+      }
+    } catch (e) { clearInterval(timer); showErr(e.message); resetBtn(); }
+  }, 2000);
+}
+// 已下载列表存在浏览器本地 (localStorage), 刷新不丢, 点右上角清空才删
+function loadDone() {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('qishui_done') || '[]'); } catch (e) {}
+  list.forEach(name => renderDone(name));
+}
+function saveDone(name) {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('qishui_done') || '[]'); } catch (e) {}
+  if (!list.includes(name)) list.push(name);
+  localStorage.setItem('qishui_done', JSON.stringify(list.slice(-50)));
+}
+function renderDone(name) {
+  const box = $('doneList'); box.style.display = 'block';
+  const div = document.createElement('div');
+  div.className = 'tr';
+  // 按文件名下载, 不依赖任务号: 刷新后按钮还在; 删除在下载下面, 红色, 点后弹窗确认
+  const btn = '<span class="acts"><a href="#" class="dl" onclick="return dlByName(this)">下载到本地</a><a href="#" class="del" onclick="return delByName(this)">删除文件</a></span>';
+  div.innerHTML = '<span class="t">' + escapeHtml(name) + '</span><span class="p">' + SAVE_PATH + '/' + escapeHtml(name) + '</span>' + btn;
+  // 新下的放最前面: 每次插到列表顶部, 旧记录自动往下排
+  $('doneItems').prepend(div);
+}
+function addDone(name) { renderDone(name); saveDone(name); }
+document.addEventListener('DOMContentLoaded', async () => {
+  // 先拿服务端配置的保存路径, 再渲染已下载列表, 否则列表还显示旧路径
+  try {
+    const r = await fetch('/api/config');
+    const d = await r.json();
+    if (d.save_path) SAVE_PATH = String(d.save_path).replace(/\/$/, '');
+  } catch (e) {}
+  loadDone();
+  $('btnClearDone').onclick = () => {
+    localStorage.removeItem('qishui_done');
+    $('doneItems').innerHTML = ''; $('doneList').style.display = 'none';
+  };
+});
+function dlFile(jobId, idx, el) {
+  let url = '/api/file/' + jobId + '/' + idx;
+  // 把歌名带在地址里, APK 按这个取名, 不然只剩序号会存成 0.mp3
+  const row = el ? el.closest('.tr') : null;
+  const nm = row ? row.querySelector('.t') : null;
+  if (nm && nm.textContent) url += '?name=' + encodeURIComponent(nm.textContent.trim());
+  // APK 会拦截这个地址弹下载选择; 普通浏览器直接下载
+  const a = document.createElement('a');
+  a.href = url; a.download = '';
+  document.body.appendChild(a); a.click(); a.remove();
+  return false;
+}
+function dlByName(el) {
+  const row = el ? el.closest('.tr') : null;
+  const nm = row ? row.querySelector('.t') : null;
+  if (!nm || !nm.textContent) return false;
+  const name = nm.textContent.trim();
+  // /api/file/ 前缀让 APK 照旧拦截走下载选择; ?name= 让 APK 直接按歌名存
+  const url = '/api/file/by-name/' + encodeURIComponent(name) + '?name=' + encodeURIComponent(name);
+  const a = document.createElement('a');
+  a.href = url; a.download = '';
+  document.body.appendChild(a); a.click(); a.remove();
+  return false;
+}
+async function delByName(el) {
+  const row = el ? el.closest('.tr') : null;
+  const nm = row ? row.querySelector('.t') : null;
+  if (!nm || !nm.textContent) return false;
+  const name = nm.textContent.trim();
+  // 弹窗确认, 防止误删: 点取消就什么都不做
+  if (!confirm('确定要删除这个文件吗？\n' + name + '\n文件会从服务器上删掉，删了就没了。')) return false;
+  try {
+    const r = await fetch('/api/file/by-name/' + encodeURIComponent(name), { method: 'DELETE' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '删除失败');
+    // 从列表和本地记录里去掉
+    if (row) row.remove();
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem('qishui_done') || '[]'); } catch (e) {}
+    list = list.filter(n => n !== name);
+    localStorage.setItem('qishui_done', JSON.stringify(list));
+    if (!$('doneItems').children.length) $('doneList').style.display = 'none';
+    toast('已删除 ' + name, 'ok');
+  } catch (e) { toast('删除失败：' + e.message, 'err'); }
+  return false;
+}
+function renderTracks(jobId, tracks, files) {
+  const box = $('tracks'); box.style.display = 'block';
+  box.innerHTML = tracks.map((t, i) => {
+    const dl = files && files[i]
+      ? '<a href="#" onclick="return dlFile(\'' + jobId + '\',' + i + ',this)" data-job="' + jobId + '" data-idx="' + i + '">下载</a>'
+      : (t.ok === false ? '<span class="bad">失败</span>' : '<span class="bad">…</span>');
+    return '<div class="tr"><span class="t">' + escapeHtml(t.title || ('第' + (i+1) + '首')) + '</span>' + dl + '</div>';
+  }).join('');
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showErr(m) { $('err').textContent = m; $('err').style.display = 'block'; }
+function resetBtn() { $('btnGo').disabled = false; $('btnGo').textContent = '开始抓取'; }
+</script>
+</body>
+</html>
